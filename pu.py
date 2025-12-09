@@ -1,6 +1,4 @@
- python3 cl.py 123.123.123.123.
-
-#!/usr/bin/env python3
+ #!/usr/bin/env python3
 import ctypes
 import argparse
 from pathlib import Path
